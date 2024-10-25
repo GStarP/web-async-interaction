@@ -4,9 +4,10 @@ const app = express()
 
 app.get("/api/data", (req, res) => {
   const pageNum = req.query.pageNum
+  const delay = pageNum > 5 ? 3000 : 1000
   setTimeout(() => {
     res.json(new Array(10).fill(1).map((_, i) => `${pageNum}-${i}`))
-  }, 3000)
+  }, delay)
 })
 
 app.listen(8080, () => {
