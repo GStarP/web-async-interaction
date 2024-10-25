@@ -3,7 +3,6 @@ import axios, {
   AxiosInstance,
   CancelTokenSource,
   InternalAxiosRequestConfig,
-  isCancel,
 } from "axios"
 
 const initCancelDuplicateRequest = (axiosInstance: AxiosInstance) => {
