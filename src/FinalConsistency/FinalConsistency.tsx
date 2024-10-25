@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { atom, getDefaultStore, useAtom } from "jotai"
 import { useEffect, useMemo } from "react"
 import { reuseAxios } from "../CancelRequest/api"
@@ -18,50 +17,29 @@ const updatePageData = async (page: number) => {
   }
 }
 
-class OutdatedError extends Error {}
-const createSafeAsyncOperation = (
-  asyncOperation: (...args: any) => Promise<any>
-) => {
+function createWillUpdateForAtom<T>(targetAtom: ReturnType<typeof atom<T>>) {
   let latestToken = 0
-  const checkToken = (token: number) => {
-    if (token !== latestToken) {
-      throw new OutdatedError()
-    }
-  }
-  return async (...args: any) => {
+  return () => {
     latestToken += 1
     const curToken = latestToken
-    console.log(`latestToken: ${latestToken}`)
-    return (
-      asyncOperation(...args)
-        // error handling show also controlled by timing
-        .catch((e) => {
-          checkToken(curToken)
-          throw e
-        })
-        .then((res) => {
-          checkToken(curToken)
-          return res
-        })
-    )
+    return (valueOrUpdater: T | ((prevData: T) => T)) => {
+      if (curToken === latestToken) {
+        getDefaultStore().set(targetAtom, valueOrUpdater)
+      }
+    }
   }
 }
-const fetchPageData = createSafeAsyncOperation((page: number) =>
-  reuseAxios.get(`/data?pageNum=${page}`)
-)
+const willUpdatePageData = createWillUpdateForAtom(pageDataAtom)
 const safeUpdatePageData = async (page: number) => {
+  const setPageData = willUpdatePageData()
   try {
     console.log(`will: ${page}`)
-    const { data: newPageData } = await fetchPageData(page)
+    const { data: newPageData } = await reuseAxios.get(`/data?pageNum=${page}`)
     console.log(`finish: ${page}`, newPageData)
-    getDefaultStore().set(pageDataAtom, newPageData)
+    setPageData(newPageData)
   } catch (e) {
-    if (e instanceof OutdatedError) {
-      console.warn(`outdated: ${page}`)
-    } else {
-      console.error(`error: ${page}`, e)
-      getDefaultStore().set(pageDataAtom, [])
-    }
+    console.error(`error: ${page}`, e)
+    setPageData([])
   }
 }
 
