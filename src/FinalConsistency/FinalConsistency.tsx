@@ -14,6 +14,7 @@ const updatePageData = async (page: number) => {
     getDefaultStore().set(pageDataAtom, newPageData)
   } catch (e) {
     console.error(`error: ${page}`, e)
+    getDefaultStore().set(pageDataAtom, [])
   }
 }
 
@@ -22,16 +23,27 @@ const createSafeAsyncOperation = (
   asyncOperation: (...args: any) => Promise<any>
 ) => {
   let latestToken = 0
+  const checkToken = (token: number) => {
+    if (token !== latestToken) {
+      throw new OutdatedError()
+    }
+  }
   return async (...args: any) => {
     latestToken += 1
     const curToken = latestToken
     console.log(`latestToken: ${latestToken}`)
-    const res = await asyncOperation(...args)
-    if (curToken === latestToken) {
-      return res
-    } else {
-      return Promise.reject(new OutdatedError())
-    }
+    return (
+      asyncOperation(...args)
+        // error handling show also controlled by timing
+        .catch((e) => {
+          checkToken(curToken)
+          throw e
+        })
+        .then((res) => {
+          checkToken(curToken)
+          return res
+        })
+    )
   }
 }
 const fetchPageData = createSafeAsyncOperation((page: number) =>
@@ -48,6 +60,7 @@ const safeUpdatePageData = async (page: number) => {
       console.warn(`outdated: ${page}`)
     } else {
       console.error(`error: ${page}`, e)
+      getDefaultStore().set(pageDataAtom, [])
     }
   }
 }
@@ -71,6 +84,7 @@ export default function FinalConsistency() {
       <div>curPage: {curPage}</div>
       {
         /* click 5 then click 6, you will see curPage=5 show page 6 data */
+        /* click 5 then click 7, you will see what happens when late response error */
         pages.map((p) => (
           <button key={`page-${p}`} onClick={() => setCurPage(p)}>
             {p}

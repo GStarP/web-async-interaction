@@ -6,7 +6,11 @@ app.get("/api/data", (req, res) => {
   const pageNum = req.query.pageNum
   const delay = pageNum > 5 ? 3000 : 1000
   setTimeout(() => {
-    res.json(new Array(10).fill(1).map((_, i) => `${pageNum}-${i}`))
+    if (pageNum === "7") {
+      res.status(500).json({ message: "error" })
+    } else {
+      res.json(new Array(10).fill(1).map((_, i) => `${pageNum}-${i}`))
+    }
   }, delay)
 })
 
